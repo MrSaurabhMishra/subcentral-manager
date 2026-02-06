@@ -9,7 +9,6 @@ import Analytics from "./pages/Analytics";
 import Subscriptions from "./pages/Subscriptions";
 import Plans from "./pages/Plans";
 import SharedAccounts from "./pages/SharedAccounts";
-import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,7 +26,6 @@ const App = () => (
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/plans" element={<Plans />} />
             <Route path="/shared" element={<SharedAccounts />} />
-            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppLayout>

@@ -5,7 +5,6 @@ import {
   CreditCard,
   Layers,
   Users,
-  Settings,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -20,7 +19,6 @@ const navItems = [
   { title: "Subscriptions", url: "/subscriptions", icon: CreditCard },
   { title: "Plans", url: "/plans", icon: Layers },
   { title: "Shared Accounts", url: "/shared", icon: Users },
-  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
