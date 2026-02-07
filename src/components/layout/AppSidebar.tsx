@@ -12,19 +12,21 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/contexts/LocaleContext";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Subscriptions", url: "/subscriptions", icon: CreditCard },
-  { title: "Plans", url: "/plans", icon: Layers },
-  { title: "Shared Accounts", url: "/shared", icon: Users },
+  { titleKey: "nav.dashboard", url: "/", icon: LayoutDashboard },
+  { titleKey: "nav.analytics", url: "/analytics", icon: BarChart3 },
+  { titleKey: "nav.subscriptions", url: "/subscriptions", icon: CreditCard },
+  { titleKey: "nav.plans", url: "/plans", icon: Layers },
+  { titleKey: "nav.shared", url: "/shared", icon: Users },
 ];
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const { t } = useLocale();
 
   useEffect(() => {
     setMobileOpen(false);
@@ -32,7 +34,6 @@ export function AppSidebar() {
 
   return (
     <>
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm lg:hidden"
@@ -40,7 +41,6 @@ export function AppSidebar() {
         />
       )}
 
-      {/* Mobile toggle */}
       <Button
         variant="ghost"
         size="icon"
@@ -57,7 +57,6 @@ export function AppSidebar() {
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        {/* Logo */}
         <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
             SC
@@ -69,11 +68,10 @@ export function AppSidebar() {
           )}
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
-              key={item.title}
+              key={item.titleKey}
               to={item.url}
               end={item.url === "/"}
               className={cn(
@@ -83,12 +81,11 @@ export function AppSidebar() {
               activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
             >
               <item.icon className="h-5 w-5 shrink-0" />
-              {!collapsed && <span>{item.title}</span>}
+              {!collapsed && <span>{t(item.titleKey)}</span>}
             </NavLink>
           ))}
         </nav>
 
-        {/* Collapse toggle - desktop only */}
         <div className="hidden lg:flex p-3 border-t border-sidebar-border">
           <Button
             variant="ghost"

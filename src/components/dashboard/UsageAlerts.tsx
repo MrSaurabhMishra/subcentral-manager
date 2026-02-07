@@ -1,8 +1,11 @@
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { lowUsageAlerts } from "@/lib/mockData";
+import { useLocale } from "@/contexts/LocaleContext";
 
 export function UsageAlerts() {
+  const { t, formatCurrency } = useLocale();
+
   if (lowUsageAlerts.length === 0) return null;
 
   return (
@@ -10,7 +13,7 @@ export function UsageAlerts() {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-warning" />
-          Low Usage Alerts
+          {t("alerts.title")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -24,17 +27,17 @@ export function UsageAlerts() {
               <div>
                 <p className="text-sm font-medium">{sub.service}</p>
                 <p className="text-xs text-muted-foreground">
-                  Last used {sub.lastUsed}
+                  {t("alerts.lastUsed")} {sub.lastUsed}
                 </p>
               </div>
             </div>
             <span className="text-sm font-semibold text-warning">
-              ${sub.monthlyCost.toFixed(2)}/mo
+              {formatCurrency(sub.monthlyCost)}/mo
             </span>
           </div>
         ))}
         <p className="text-xs text-muted-foreground">
-          Consider pausing these subscriptions to save ${lowUsageAlerts.reduce((s, a) => s + a.monthlyCost, 0).toFixed(2)}/month
+          {t("alerts.consider")} {formatCurrency(lowUsageAlerts.reduce((s, a) => s + a.monthlyCost, 0))}/month
         </p>
       </CardContent>
     </Card>

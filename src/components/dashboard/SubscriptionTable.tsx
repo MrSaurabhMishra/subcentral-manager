@@ -1,34 +1,30 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { subscriptions } from "@/lib/mockData";
 import { Users } from "lucide-react";
+import { useLocale } from "@/contexts/LocaleContext";
 
 export function SubscriptionTable() {
+  const { t, formatCurrency } = useLocale();
+
   return (
     <Card className="glass-card animate-fade-in">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-semibold">Your Subscriptions</CardTitle>
+        <CardTitle className="text-lg font-semibold">{t("table.title")}</CardTitle>
       </CardHeader>
       <CardContent className="px-0 pb-0">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-6">Service</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Next Billing</TableHead>
-                <TableHead>Cost</TableHead>
-                <TableHead className="hidden lg:table-cell">Last Used</TableHead>
-                <TableHead className="hidden lg:table-cell">Usage</TableHead>
-                <TableHead className="hidden sm:table-cell">Shared</TableHead>
+                <TableHead className="pl-6">{t("table.service")}</TableHead>
+                <TableHead>{t("table.status")}</TableHead>
+                <TableHead className="hidden md:table-cell">{t("table.nextBilling")}</TableHead>
+                <TableHead>{t("table.cost")}</TableHead>
+                <TableHead className="hidden lg:table-cell">{t("table.lastUsed")}</TableHead>
+                <TableHead className="hidden lg:table-cell">{t("table.usage")}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t("table.shared")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -52,14 +48,14 @@ export function SubscriptionTable() {
                           : "bg-muted text-muted-foreground border-0"
                       }
                     >
-                      {sub.status === "active" ? "Active" : "Paused"}
+                      {sub.status === "active" ? t("status.active") : t("status.paused")}
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                     {sub.nextBilling}
                   </TableCell>
                   <TableCell className="font-semibold text-sm">
-                    ${sub.monthlyCost.toFixed(2)}
+                    {formatCurrency(sub.monthlyCost)}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                     {sub.lastUsed}
