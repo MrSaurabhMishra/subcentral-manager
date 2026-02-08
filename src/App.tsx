@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { LocaleProvider } from "@/contexts/LocaleContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import Analytics from "./pages/Analytics";
@@ -43,13 +44,15 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <LocaleProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppLayout>
-            <AnimatedRoutes />
-          </AppLayout>
-        </BrowserRouter>
+        <SubscriptionProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppLayout>
+              <AnimatedRoutes />
+            </AppLayout>
+          </BrowserRouter>
+        </SubscriptionProvider>
       </LocaleProvider>
     </TooltipProvider>
   </QueryClientProvider>

@@ -1,19 +1,19 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { LocaleConfig, locales, detectLocaleConfig } from "@/lib/locales";
 
 export type Locale = "en" | "hi";
 
 interface LocaleContextType {
   locale: Locale;
+  localeConfig: LocaleConfig;
+  setLocaleConfig: (config: LocaleConfig) => void;
   setLocale: (locale: Locale) => void;
   t: (key: string) => string;
   formatCurrency: (amount: number) => string;
   currency: string;
 }
 
-const INR_RATE = 83.5;
-
 const translations: Record<string, Record<Locale, string>> = {
-  // Dashboard
   "dashboard.title": { en: "Dashboard", hi: "डैशबोर्ड" },
   "dashboard.subtitle": { en: "Overview of your subscription spending", hi: "आपके सब्सक्रिप्शन खर्चों का अवलोकन" },
   "stat.totalSpend": { en: "Total Monthly Spend", hi: "कुल मासिक खर्च" },
@@ -34,20 +34,10 @@ const translations: Record<string, Record<Locale, string>> = {
   "alerts.title": { en: "Low Usage Alerts", hi: "कम उपयोग अलर्ट" },
   "alerts.consider": { en: "Consider pausing these subscriptions to save", hi: "बचत के लिए इन सब्सक्रिप्शन को रोकने पर विचार करें" },
   "alerts.lastUsed": { en: "Last used", hi: "आखिरी बार उपयोग" },
-
-  // Poll
-  "poll.logUsage": { en: "Log Usage", hi: "उपयोग दर्ज करें" },
-  "poll.hours": { en: "hours", hi: "घंटे" },
-  "poll.submit": { en: "Submit", hi: "जमा करें" },
-  "poll.logged": { en: "Logged!", hi: "दर्ज हो गया!" },
-
-  // Renewals
   "renewals.title": { en: "Upcoming Renewals", hi: "आगामी नवीनीकरण" },
   "renewals.days": { en: "days", hi: "दिन" },
   "renewals.today": { en: "Today", hi: "आज" },
   "renewals.tomorrow": { en: "Tomorrow", hi: "कल" },
-
-  // Analytics
   "analytics.title": { en: "Analytics", hi: "विश्लेषण" },
   "analytics.subtitle": { en: "Spending trends and insights", hi: "खर्च के रुझान और अंतर्दृष्टि" },
   "analytics.spendTrend": { en: "Spend Trend", hi: "खर्च का रुझान" },
@@ -60,19 +50,13 @@ const translations: Record<string, Record<Locale, string>> = {
   "analytics.annualProjection": { en: "Annual Projection", hi: "वार्षिक अनुमान" },
   "analytics.wastedOnUnused": { en: "Wasted on unused subs", hi: "अप्रयुक्त सब्सक्रिप्शन पर बर्बाद" },
   "analytics.projectedYearly": { en: "Projected yearly spend", hi: "अनुमानित वार्षिक खर्च" },
-
-  // Nav
   "nav.dashboard": { en: "Dashboard", hi: "डैशबोर्ड" },
   "nav.analytics": { en: "Analytics", hi: "विश्लेषण" },
   "nav.subscriptions": { en: "Subscriptions", hi: "सब्सक्रिप्शन" },
   "nav.plans": { en: "Plans", hi: "योजनाएं" },
   "nav.shared": { en: "Shared Accounts", hi: "साझा खाते" },
-
-  // Header
   "header.search": { en: "Search subscriptions...", hi: "सब्सक्रिप्शन खोजें..." },
   "header.addNew": { en: "Add New", hi: "नया जोड़ें" },
-
-  // Account
   "account.profile": { en: "Profile", hi: "प्रोफाइल" },
   "account.usageSummary": { en: "Usage Summary", hi: "उपयोग सारांश" },
   "account.virtualCard": { en: "Virtual Credit Card", hi: "वर्चुअल क्रेडिट कार्ड" },
@@ -86,67 +70,49 @@ const translations: Record<string, Record<Locale, string>> = {
   "account.logout": { en: "Logout", hi: "लॉग आउट" },
 };
 
-const pollQuestionsEn = [
-  "Did you cheat on Netflix today? 😏",
-  "How many hours did you binge-watch? 🍿",
-  "Did Spotify play your guilty pleasure? 🎵",
-  "Was ChatGPT your best friend today? 🤖",
-  "Did you actually use that gym app? 💪",
-  "How much screen time are we talking? 📱",
-  "Did you open Figma or just stare at it? 🎨",
-  "Netflix & chill or Netflix & bill? 💸",
-];
-
-const pollQuestionsHi = [
-  "बाबू, आज Netflix को धोखा दिया? 😏",
-  "आज कितने घंटे बिंज-वॉच किया? 🍿",
-  "Spotify पे guilty pleasure सुना क्या? 🎵",
-  "ChatGPT आज का बेस्ट फ्रेंड रहा? 🤖",
-  "जिम ऐप खोला भी या बस icon देखा? 💪",
-  "आज कितना स्क्रीन टाइम हुआ? 📱",
-  "Figma खोला या बस ताकते रहे? 🎨",
-  "Netflix देखा या बस बिल भरा? 💸",
-];
-
-export const getPollQuestions = (locale: Locale) =>
-  locale === "hi" ? pollQuestionsHi : pollQuestionsEn;
-
-function detectLocale(): Locale {
-  try {
-    const lang = navigator.language || (navigator as any).userLanguage || "en";
-    if (lang.startsWith("hi")) return "hi";
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    if (tz.includes("Kolkata") || tz.includes("Calcutta")) return "hi";
-  } catch {}
-  return "en";
-}
+const STORAGE_KEY = "subcentral-locale-code";
 
 const LocaleContext = createContext<LocaleContextType | null>(null);
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>(() => {
-    const saved = localStorage.getItem("subcentral-locale") as Locale | null;
-    return saved || detectLocale();
+  const [localeConfig, setLocaleConfigState] = useState<LocaleConfig>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const found = locales.find(l => l.code === saved);
+      if (found) return found;
+    }
+    return detectLocaleConfig();
   });
 
   useEffect(() => {
-    localStorage.setItem("subcentral-locale", locale);
-  }, [locale]);
+    localStorage.setItem(STORAGE_KEY, localeConfig.code);
+  }, [localeConfig]);
+
+  const locale = localeConfig.lang;
+
+  const setLocale = (l: Locale) => {
+    const config = l === "hi" ? locales.find(lc => lc.code === "in")! : locales[0];
+    setLocaleConfigState(config);
+  };
+
+  const setLocaleConfig = (config: LocaleConfig) => {
+    setLocaleConfigState(config);
+  };
 
   const t = (key: string): string => translations[key]?.[locale] || key;
 
   const formatCurrency = (amount: number): string => {
-    if (locale === "hi") {
-      const inr = amount * INR_RATE;
-      return `₹${inr.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const converted = amount * localeConfig.rate;
+    if (localeConfig.rate >= 100) {
+      return `${localeConfig.currencySymbol}${Math.round(converted).toLocaleString()}`;
     }
-    return `$${amount.toFixed(2)}`;
+    return `${localeConfig.currencySymbol}${converted.toFixed(2)}`;
   };
 
-  const currency = locale === "hi" ? "₹" : "$";
+  const currency = localeConfig.currencySymbol;
 
   return (
-    <LocaleContext.Provider value={{ locale, setLocale, t, formatCurrency, currency }}>
+    <LocaleContext.Provider value={{ locale, localeConfig, setLocaleConfig, setLocale, t, formatCurrency, currency }}>
       {children}
     </LocaleContext.Provider>
   );
@@ -157,3 +123,6 @@ export function useLocale() {
   if (!ctx) throw new Error("useLocale must be used within LocaleProvider");
   return ctx;
 }
+
+export type { LocaleConfig };
+export { locales } from "@/lib/locales";
