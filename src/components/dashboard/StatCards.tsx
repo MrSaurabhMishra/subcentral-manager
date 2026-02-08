@@ -1,20 +1,22 @@
 import { DollarSign, CreditCard, PiggyBank, TrendingDown, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { subscriptions } from "@/lib/mockData";
+import { useSubscriptions } from "@/contexts/SubscriptionContext";
 import { useLocale } from "@/contexts/LocaleContext";
 
 export function StatCards() {
   const { t, formatCurrency } = useLocale();
+  const { subscriptions, selectedSubId } = useSubscriptions();
 
-  const activeCount = subscriptions.filter(s => s.status === "active").length;
-  const totalMonthly = subscriptions.filter(s => s.status === "active").reduce((sum, s) => sum + s.monthlyCost, 0);
-  const pausedSavings = subscriptions.filter(s => s.status === "paused").reduce((sum, s) => sum + s.monthlyCost, 0);
+  const filtered = selectedSubId ? subscriptions.filter(s => s.id === selectedSubId) : subscriptions;
+  const activeCount = filtered.filter(s => s.status === "active").length;
+  const totalMonthly = filtered.filter(s => s.status === "active").reduce((sum, s) => sum + s.monthlyCost, 0);
+  const pausedSavings = filtered.filter(s => s.status === "paused").reduce((sum, s) => sum + s.monthlyCost, 0);
 
   const stats = [
     {
       title: t("stat.totalSpend"),
       value: formatCurrency(totalMonthly),
-      change: "+3.2%",
+      change: selectedSubId ? "Filtered" : "+3.2%",
       trend: "up" as const,
       icon: DollarSign,
       accent: "text-primary",
@@ -23,7 +25,7 @@ export function StatCards() {
     {
       title: t("stat.activeSubs"),
       value: activeCount.toString(),
-      change: t("stat.newThisMonth"),
+      change: selectedSubId ? "1 service" : t("stat.newThisMonth"),
       trend: "up" as const,
       icon: CreditCard,
       accent: "text-chart-3",

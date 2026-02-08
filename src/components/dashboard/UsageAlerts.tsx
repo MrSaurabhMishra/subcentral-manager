@@ -1,12 +1,22 @@
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { lowUsageAlerts } from "@/lib/mockData";
+import { useSubscriptions } from "@/contexts/SubscriptionContext";
 import { useLocale } from "@/contexts/LocaleContext";
+
+function getDaysInactive(lastUsed: string): number {
+  const match = lastUsed.match(/(\d+)\s*days?\s*ago/);
+  if (match) return parseInt(match[1]);
+  if (lastUsed === "Never") return 999;
+  return 0;
+}
 
 export function UsageAlerts() {
   const { t, formatCurrency } = useLocale();
+  const { subscriptions } = useSubscriptions();
 
-  if (lowUsageAlerts.length === 0) return null;
+  const lowUsage = subscriptions.filter(s => getDaysInactive(s.lastUsed) >= 30);
+
+  if (lowUsage.length === 0) return null;
 
   return (
     <Card className="glass-card border-warning/30 animate-fade-in">
@@ -17,13 +27,15 @@ export function UsageAlerts() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {lowUsageAlerts.map((sub) => (
+        {lowUsage.map((sub) => (
           <div
             key={sub.id}
             className="flex items-center justify-between p-3 rounded-lg bg-warning/5 border border-warning/10"
           >
             <div className="flex items-center gap-3">
-              <span className="text-lg">{sub.icon}</span>
+              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center text-lg">
+                {sub.icon || <span className="text-xs font-bold text-muted-foreground">{sub.service[0]}</span>}
+              </div>
               <div>
                 <p className="text-sm font-medium">{sub.service}</p>
                 <p className="text-xs text-muted-foreground">
@@ -37,7 +49,7 @@ export function UsageAlerts() {
           </div>
         ))}
         <p className="text-xs text-muted-foreground">
-          {t("alerts.consider")} {formatCurrency(lowUsageAlerts.reduce((s, a) => s + a.monthlyCost, 0))}/month
+          {t("alerts.consider")} {formatCurrency(lowUsage.reduce((s, a) => s + a.monthlyCost, 0))}/month
         </p>
       </CardContent>
     </Card>
