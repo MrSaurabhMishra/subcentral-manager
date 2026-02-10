@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { LocaleProvider } from "@/contexts/LocaleContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { TierProvider } from "@/contexts/TierContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import Analytics from "./pages/Analytics";
@@ -44,15 +45,17 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <LocaleProvider>
-        <SubscriptionProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppLayout>
-              <AnimatedRoutes />
-            </AppLayout>
-          </BrowserRouter>
-        </SubscriptionProvider>
+        <TierProvider>
+          <SubscriptionProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppLayout>
+                <AnimatedRoutes />
+              </AppLayout>
+            </BrowserRouter>
+          </SubscriptionProvider>
+        </TierProvider>
       </LocaleProvider>
     </TooltipProvider>
   </QueryClientProvider>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   User, BarChart3, CreditCard, Layers, Clock, KeyRound, HelpCircle, Bell, Users, Download, LogOut,
-  ArrowLeft, Eye, EyeOff, ChevronDown, Mail, Phone,
+  ArrowLeft, Eye, EyeOff, Mail, Phone, Lock, Printer, Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLocale } from "@/contexts/LocaleContext";
-import { subscriptions, paymentHistory } from "@/lib/mockData";
-import { cn } from "@/lib/utils";
+import { useSubscriptions } from "@/contexts/SubscriptionContext";
+import { useTier } from "@/contexts/TierContext";
+import { paymentHistory } from "@/lib/mockData";
+import { toast } from "sonner";
 
 type View = "main" | "profile" | "usage" | "virtualCard" | "plan" | "paymentHistory" | "resetPassword" | "support" | "notifications" | "family" | "export";
 
@@ -29,23 +31,28 @@ const PanelHeader = ({ title, onBack }: { title: string; onBack: () => void }) =
 export function AccountSidebar({ onClose }: { onClose: () => void }) {
   const [view, setView] = useState<View>("main");
   const { t, formatCurrency } = useLocale();
+  const { subscriptions } = useSubscriptions();
+  const { tier, limits, tierName, setTier } = useTier();
   const [cardRevealed, setCardRevealed] = useState(false);
   const [notifSettings, setNotifSettings] = useState({
     renewal7Email: true, renewal7Push: false,
     renewal3Email: true, renewal3Push: true,
     renewal1Email: true, renewal1Push: true,
     paymentEmail: true, paymentPush: false,
-    usageEmail: false, usagePush: true,
+    usageEmail: false, usagePush: false,
     summaryEmail: true, summaryPush: false,
-    questionsEmail: false, questionsPush: true,
   });
 
   const sharedSubs = subscriptions.filter((s) => s.shared);
 
   const handleExportCSV = () => {
+    if (!limits.dataExport) {
+      toast.error("Data Export is available on Premium+ only.");
+      return;
+    }
     const totalSpend = subscriptions.filter(s => s.status === "active").reduce((s, a) => s + a.monthlyCost, 0);
     const totalSave = subscriptions.filter(s => s.status === "paused").reduce((s, a) => s + a.monthlyCost, 0);
-    const waste = subscriptions.filter(s => { const m = s.lastUsed.match(/(\d+)\s*days?\s*ago/); return m && parseInt(m[1]) >= 30; }).reduce((s, a) => s + a.monthlyCost, 0);
+    const waste = subscriptions.filter(s => { const m = s.lastUsed.match(/(\d+)\s*days?\s*ago/); return m && parseInt(m[1]) >= 7; }).reduce((s, a) => s + a.monthlyCost, 0);
     const rows = [
       ["Service", "Status", "Monthly Cost", "Next Billing", "Category", "Shared"].join(","),
       ...subscriptions.map(s => [s.service, s.status, s.monthlyCost.toFixed(2), s.nextBilling, s.category, s.shared ? "Yes" : "No"].join(",")),
@@ -60,7 +67,15 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
     URL.revokeObjectURL(url);
   };
 
-  const NotifRow = ({ label, emailKey, pushKey }: { label: string; emailKey: keyof typeof notifSettings; pushKey: keyof typeof notifSettings }) => (
+  const handleDownloadInvoice = (desc: string) => {
+    if (!limits.billingDownload) {
+      toast.error("Invoice download is available on Premium+ only.");
+      return;
+    }
+    toast.success(`Downloading invoice for "${desc}"...`);
+  };
+
+  const NotifRow = ({ label, emailKey, pushKey, emailOnly }: { label: string; emailKey: keyof typeof notifSettings; pushKey?: keyof typeof notifSettings; emailOnly?: boolean }) => (
     <div className="flex items-center justify-between py-2">
       <p className="text-xs font-medium">{label}</p>
       <div className="flex items-center gap-4">
@@ -68,43 +83,60 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
           <Switch checked={notifSettings[emailKey] as boolean} onCheckedChange={(v) => setNotifSettings(n => ({ ...n, [emailKey]: v }))} className="scale-75" />
           <Mail className="h-3 w-3 text-muted-foreground" />
         </div>
-        <div className="flex items-center gap-1.5">
-          <Switch checked={notifSettings[pushKey] as boolean} onCheckedChange={(v) => setNotifSettings(n => ({ ...n, [pushKey]: v }))} className="scale-75" />
-          <Phone className="h-3 w-3 text-muted-foreground" />
-        </div>
+        {!emailOnly && pushKey && (
+          <div className="flex items-center gap-1.5">
+            <Switch checked={notifSettings[pushKey] as boolean} onCheckedChange={(v) => setNotifSettings(n => ({ ...n, [pushKey]: v }))} className="scale-75" />
+            <Phone className="h-3 w-3 text-muted-foreground" />
+          </div>
+        )}
       </div>
     </div>
   );
 
-  const menuItems: { icon: any; label: string; view: View }[] = [
+  const menuItems: { icon: any; label: string; view: View; locked?: boolean }[] = [
     { icon: User, label: t("account.profile"), view: "profile" },
     { icon: BarChart3, label: t("account.usageSummary"), view: "usage" },
-    { icon: CreditCard, label: t("account.virtualCard"), view: "virtualCard" },
+    { icon: CreditCard, label: "Virtual Card (Coming Soon)", view: "virtualCard" },
     { icon: Layers, label: t("account.yourPlan"), view: "plan" },
     { icon: Clock, label: t("account.paymentHistory"), view: "paymentHistory" },
     { icon: KeyRound, label: t("account.resetPassword"), view: "resetPassword" },
     { icon: HelpCircle, label: t("account.support"), view: "support" },
     { icon: Bell, label: t("account.notifications"), view: "notifications" },
     { icon: Users, label: t("account.familyTeam"), view: "family" },
-    { icon: Download, label: t("account.dataExport"), view: "export" },
+    { icon: Download, label: t("account.dataExport"), view: "export", locked: !limits.dataExport },
   ];
 
   return (
-    <div className="w-80 max-h-[70vh] overflow-y-auto rounded-lg border border-border bg-card shadow-lg z-50 animate-fade-in">
+    <div className="w-80 max-h-[70vh] overflow-y-auto rounded-xl border border-border bg-card shadow-lg z-50 animate-fade-in">
       {view === "main" && (
         <>
           <div className="p-4 border-b border-border flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">JD</div>
             <div>
               <p className="font-semibold text-sm">John Doe</p>
-              <p className="text-xs text-muted-foreground">john.doe@email.com</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs text-muted-foreground">john.doe@email.com</p>
+                {tier !== "basic" && <Badge className="text-[8px] h-4 bg-primary/10 text-primary border-0 gap-0.5"><Crown className="h-2.5 w-2.5" />{tierName}</Badge>}
+              </div>
             </div>
           </div>
           <div className="py-1">
             {menuItems.map((item) => (
-              <button key={item.label} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setView(item.view)}>
+              <button
+                key={item.label}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                onClick={() => {
+                  if (item.view === "virtualCard") {
+                    toast.info("Virtual Card is coming soon!");
+                    return;
+                  }
+                  setView(item.view);
+                }}
+                disabled={item.locked}
+              >
                 <item.icon className="h-4 w-4 text-muted-foreground" />
                 {item.label}
+                {item.locked && <Lock className="h-3 w-3 text-muted-foreground ml-auto" />}
               </button>
             ))}
           </div>
@@ -146,25 +178,27 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
                 <span className="text-muted-foreground">{s.currentMonthUsage}</span>
               </div>
             ))}
+            {subscriptions.filter(s => s.status === "active").length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No active subscriptions</p>
+            )}
           </div>
         </>
       )}
 
       {view === "virtualCard" && (
         <>
-          <PanelHeader title={t("account.virtualCard")} onBack={() => setView("main")} />
+          <PanelHeader title="Virtual Card" onBack={() => setView("main")} />
           <div className="p-4 space-y-4">
-            <div className="p-5 rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground space-y-4">
-              <p className="text-xs opacity-80">Virtual Card</p>
-              <p className="text-lg font-mono tracking-wider">{cardRevealed ? "4532 8921 0045 7831" : "•••• •••• •••• 7831"}</p>
-              <div className="flex justify-between text-xs">
-                <span>JOHN DOE</span><span>12/28</span>
+            <div className="p-5 rounded-xl bg-gradient-to-br from-muted to-muted/50 border border-border space-y-4 relative overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Badge variant="outline" className="text-sm font-semibold bg-card/80 backdrop-blur-sm">Coming Soon</Badge>
+              </div>
+              <p className="text-xs opacity-40">Virtual Card</p>
+              <p className="text-lg font-mono tracking-wider opacity-30">•••• •••• •••• ••••</p>
+              <div className="flex justify-between text-xs opacity-30">
+                <span>YOUR NAME</span><span>--/--</span>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => setCardRevealed(!cardRevealed)}>
-              {cardRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              {cardRevealed ? "Hide Number" : "Reveal Number"}
-            </Button>
           </div>
         </>
       )}
@@ -175,19 +209,27 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
           <div className="p-4 space-y-3">
             <div className="p-3 rounded-lg border border-primary/30 bg-primary/5">
               <div className="flex items-center justify-between">
-                <p className="font-semibold text-sm">Free Plan</p>
+                <p className="font-semibold text-sm">{tierName}</p>
                 <Badge className="bg-primary/10 text-primary border-0">Current</Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Track up to 5 subscriptions</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {limits.maxSubscriptions ? `Up to ${limits.maxSubscriptions} subscriptions` : "Unlimited subscriptions"}
+              </p>
             </div>
-            <div className="p-3 rounded-lg border">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-sm">Pro Plan</p>
-                <span className="text-sm font-bold">$4.99/mo</span>
+            {tier !== "premiumPlus" && (
+              <div className="p-3 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-sm">{tier === "basic" ? "Premium" : "Premium+"}</p>
+                  <span className="text-sm font-bold">{tier === "basic" ? "$15/yr" : "$25/yr"}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {tier === "basic" ? "10 subs, full analytics, alerts" : "Unlimited, export, invoices"}
+                </p>
+                <Button size="sm" className="w-full mt-2" onClick={() => { setTier(tier === "basic" ? "premium" : "premiumPlus"); toast.success("Plan upgraded!"); }}>
+                  Upgrade
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Unlimited subs, advanced analytics</p>
-              <Button size="sm" className="w-full mt-2">Upgrade to Pro</Button>
-            </div>
+            )}
           </div>
         </>
       )}
@@ -202,6 +244,7 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
                   <TableHead className="text-xs">Date</TableHead>
                   <TableHead className="text-xs">Description</TableHead>
                   <TableHead className="text-xs text-right">Amount</TableHead>
+                  <TableHead className="text-xs w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -210,10 +253,24 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
                     <TableCell className="text-xs py-2">{p.date}</TableCell>
                     <TableCell className="text-xs py-2">{p.description}</TableCell>
                     <TableCell className="text-xs py-2 text-right font-medium">{formatCurrency(p.amount)}</TableCell>
+                    <TableCell className="py-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleDownloadInvoice(p.description)}
+                        title={limits.billingDownload ? "Download Invoice" : "Premium+ only"}
+                      >
+                        <Printer className={`h-3 w-3 ${limits.billingDownload ? "text-primary" : "text-muted-foreground/30"}`} />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            {!limits.billingDownload && (
+              <p className="text-[10px] text-muted-foreground text-center py-2">Invoice download available on Premium+</p>
+            )}
           </div>
         </>
       )}
@@ -234,15 +291,28 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
         <>
           <PanelHeader title={t("account.support")} onBack={() => setView("main")} />
           <div className="p-4 space-y-4">
+            {(tier === "premium" || tier === "premiumPlus") && (
+              <Badge className="bg-primary/10 text-primary border-0 gap-1 mb-2">
+                <Crown className="h-3 w-3" /> Priority Support
+              </Badge>
+            )}
             <a href="mailto:support@subcentral.app" className="flex items-center gap-2 text-sm text-primary hover:underline">
               <Mail className="h-4 w-4" /> support@subcentral.app
             </a>
             <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">FAQ</p>
             <Accordion type="single" collapsible className="w-full">
               {[
                 { q: "How do I cancel a subscription?", a: "Go to Subscriptions, click the service, and select Pause or Cancel." },
-                { q: "Is my data secure?", a: "Yes, all data is encrypted and never shared with third parties." },
+                { q: "Is my data secure?", a: "Yes, all data is stored locally on your device and never shared with third parties." },
                 { q: "How do shared accounts work?", a: "You can invite family or team members to split costs on shared subscriptions." },
+                { q: "What are the subscription limits?", a: "Basic: 4 subs, Premium: 10 subs, Premium+: Unlimited." },
+                { q: "How do I upgrade my plan?", a: "Go to Plans in the sidebar or Your Plan in your account menu." },
+                { q: "What is the Daily Vibe Check?", a: "A fun daily overlay that asks about your usage for each subscription to track engagement." },
+                { q: "How are savings calculated?", a: "Savings = cost of paused subscriptions. Potential savings = cost of subs unused for 7+ days." },
+                { q: "Can I export my data?", a: "Premium+ users can export data as CSV or PDF from the Data Export section." },
+                { q: "How does the virtual card work?", a: "Virtual Card is a planned feature that will provide a dedicated card for managing sub payments." },
+                { q: "How do I contact support?", a: "Email support@subcentral.app. Premium/Premium+ users get priority response." },
               ].map((faq, i) => (
                 <AccordionItem key={i} value={`faq-${i}`}>
                   <AccordionTrigger className="text-xs text-left">{faq.q}</AccordionTrigger>
@@ -266,9 +336,13 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
             <NotifRow label="1 day before renewal" emailKey="renewal1Email" pushKey="renewal1Push" />
             <Separator className="my-2" />
             <NotifRow label="Payment confirmation" emailKey="paymentEmail" pushKey="paymentPush" />
-            <NotifRow label="Usage alerts" emailKey="usageEmail" pushKey="usagePush" />
-            <NotifRow label="Weekly summary" emailKey="summaryEmail" pushKey="summaryPush" />
-            <NotifRow label="Daily questions" emailKey="questionsEmail" pushKey="questionsPush" />
+            {limits.lowUsageAlerts && (
+              <NotifRow label="Usage alerts" emailKey="usageEmail" pushKey="usagePush" />
+            )}
+            <Separator className="my-2" />
+            {limits.monthlySummary && (
+              <NotifRow label="Monthly Summary" emailKey="summaryEmail" emailOnly />
+            )}
             <Button size="sm" className="w-full mt-3">Save Preferences</Button>
           </div>
         </>

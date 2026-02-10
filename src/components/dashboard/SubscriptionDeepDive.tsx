@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useSubscriptions, Subscription } from "@/contexts/SubscriptionContext";
 import { useLocale } from "@/contexts/LocaleContext";
-import { ArrowLeft, Clock, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
+import { ArrowLeft, DollarSign, TrendingUp, AlertTriangle, Calendar } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 function getDaysInactive(lastUsed: string): number {
@@ -22,15 +22,15 @@ export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
 
   const totalHours = sub.dailyHours.reduce((a, b) => a + b, 0);
   const totalDays = totalHours / 24;
-  const costPerHour = totalHours > 0 ? sub.monthlyCost / totalHours : 0;
+  const totalMonths = totalDays / 30;
   const costPerDay = totalDays > 0 ? sub.monthlyCost / totalDays : 0;
   const daysInactive = getDaysInactive(sub.lastUsed);
   const isWasting = daysInactive >= 7;
 
-  // Build usage chart from dailyHours (last 7 entries)
+  // Build usage chart — show in days
   const chartData = sub.dailyHours.slice(-7).map((h, i) => ({
-    label: `D${i + 1}`,
-    hours: h,
+    label: `Day ${i + 1}`,
+    days: +(h / 24).toFixed(3),
   }));
 
   // Renewal progress
@@ -74,20 +74,20 @@ export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Cost/Hour</p>
-              <p className="text-lg font-bold">{totalHours > 0 ? formatCurrency(costPerHour) : "—"}</p>
-            </div>
-            <div className="space-y-1">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Cost/Day</p>
               <p className="text-lg font-bold">{totalDays > 0 ? formatCurrency(costPerDay) : "—"}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Total Hours</p>
-              <p className="text-lg font-bold">{totalHours.toFixed(1)}h</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Total Days</p>
+              <p className="text-lg font-bold">{totalDays.toFixed(2)}d</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Total Days</p>
-              <p className="text-lg font-bold">{totalDays.toFixed(2)}d</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Total Months</p>
+              <p className="text-lg font-bold">{totalMonths.toFixed(2)}mo</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Monthly Cost</p>
+              <p className="text-lg font-bold">{formatCurrency(sub.monthlyCost)}</p>
             </div>
           </div>
 
@@ -103,7 +103,7 @@ export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
 
           {chartData.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">{locale === "hi" ? "हाल का उपयोग" : "Recent Usage"}</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">{locale === "hi" ? "हाल का उपयोग (दिनों में)" : "Recent Usage (in days)"}</p>
               <ResponsiveContainer width="100%" height={140}>
                 <BarChart data={chartData}>
                   <XAxis dataKey="label" axisLine={false} tickLine={false} className="text-xs" />
@@ -115,9 +115,9 @@ export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(v: number) => [`${v}h`, ""]}
+                    formatter={(v: number) => [`${v} days`, ""]}
                   />
-                  <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="days" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
