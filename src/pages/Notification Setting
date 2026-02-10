@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 const SettingsPage = () => {
-  const [notifications, setNotifications] = useState({
+  const [notifications, setNotifications] = useState({ 
     email7: true,
     email3: true,
     email1: true,
