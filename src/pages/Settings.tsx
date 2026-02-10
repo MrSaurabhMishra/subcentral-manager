@@ -58,7 +58,7 @@ const SettingsPage = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Current Plan</p>
-                  <p className="text-xs text-muted-foreground">Free plan — 5 subscriptions</p>
+                  <p className="text-xs text-muted-foreground">Free plan — 4 subscriptions</p>
                 </div>
                 <Button variant="outline" size="sm">Upgrade Plan</Button>
               </div>
