@@ -1,5 +1,9 @@
 import { LayoutDashboard, BarChart3, CreditCard, Download, ChevronUp } from "lucide-react";
-
+import { NavLink } from "@/components/NavLink";
+import { useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useLocale } from "@/contexts/LocaleContext";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
