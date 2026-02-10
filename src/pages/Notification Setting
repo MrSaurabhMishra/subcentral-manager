@@ -1,3 +1,11 @@
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+
 const SettingsPage = () => {
   const [notifications, setNotifications] = useState({
     email7: true,
@@ -8,41 +16,72 @@ const SettingsPage = () => {
     push1: true,
   });
 
-  {/* Notifications Tab */}
-        <TabsContent value="notifications" className="space-y-4">
-          <Card className="glass-card animate-fade-in">
-            <CardHeader>
-              <CardTitle className="text-base">Renewal Notifications</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {[
-                { label: "7 days before renewal", emailKey: "email7" as const, pushKey: "push7" as const },
-                { label: "3 days before renewal", emailKey: "email3" as const, pushKey: "push3" as const },
-                { label: "1 day before renewal", emailKey: "email1" as const, pushKey: "push1" as const },
-              ].map((item) => (
-                <div key={item.label} className="space-y-3">
-                  <p className="text-sm font-medium">{item.label}</p>
-                  <div className="flex items-center gap-8">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={notifications[item.emailKey]}
-                        onCheckedChange={(v) =>
-                          setNotifications((n) => ({ ...n, [item.emailKey]: v }))
-                        }
-                      />
-                      <Label className="text-sm text-muted-foreground">Email</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={notifications[item.pushKey]}
-                        onCheckedChange={(v) =>
-                          setNotifications((n) => ({ ...n, [item.pushKey]: v }))
-                        }
-                      />
-                      <Label className="text-sm text-muted-foreground">Push</Label>
-                    </div>
+  const notificationOptions = [
+    { label: "7 days before renewal", emailKey: "email7" as const, pushKey: "push7" as const },
+    { label: "3 days before renewal", emailKey: "email3" as const, pushKey: "push3" as const },
+    { label: "1 day before renewal", emailKey: "email1" as const, pushKey: "push1" as const },
+  ];
+
+  const handleSave = () => {
+    console.log("Saving preferences:", notifications);
+    // Yahan API call add kar sakte ho
+  };
+
+  return (
+    <TabsContent value="notifications" className="space-y-4">
+      <Card className="glass-card animate-fade-in border-none shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Renewal Notifications</CardTitle>
+          <p className="text-sm text-muted-foreground">Choose how and when you want to be reminded.</p>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
+          {notificationOptions.map((item, index) => (
+            <div key={item.label} className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <p className="text-sm font-medium">{item.label}</p>
+                
+                <div className="flex items-center gap-6">
+                  {/* Email Toggle */}
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id={`${item.emailKey}`}
+                      checked={notifications[item.emailKey]}
+                      onCheckedChange={(v) =>
+                        setNotifications((n) => ({ ...n, [item.emailKey]: v }))
+                      }
+                    />
+                    <Label htmlFor={`${item.emailKey}`} className="text-sm cursor-pointer">Email</Label>
                   </div>
-                  <Separator />
+
+                  {/* Push Toggle */}
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id={`${item.pushKey}`}
+                      checked={notifications[item.pushKey]}
+                      onCheckedChange={(v) =>
+                        setNotifications((n) => ({ ...n, [item.pushKey]: v }))
+                      }
+                    />
+                    <Label htmlFor={`${item.pushKey}`} className="text-sm cursor-pointer">Push</Label>
+                  </div>
                 </div>
-              ))}
-              <Button>Save Preferences</Button>
+              </div>
+              
+              {/* Sirf items ke beech mein separator dikhane ke liye */}
+              {index !== notificationOptions.length - 1 && <Separator className="opacity-50" />}
+            </div>
+          ))}
+
+          <div className="pt-4">
+            <Button onClick={handleSave} className="w-full sm:w-auto">
+              Save Preferences
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  );
+};
+
+export default SettingsPage;
