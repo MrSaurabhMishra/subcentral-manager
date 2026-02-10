@@ -16,7 +16,7 @@ export function StatCards() {
     {
       title: t("stat.totalSpend"),
       value: formatCurrency(totalMonthly),
-      change: selectedSubId ? "Filtered" : "+3.2%",
+      change: selectedSubId ? "Filtered" : "2%",
       trend: "up" as const,
       icon: DollarSign,
       accent: "text-primary",
