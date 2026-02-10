@@ -1,0 +1,48 @@
+const SettingsPage = () => {
+  const [notifications, setNotifications] = useState({
+    email7: true,
+    email3: true,
+    email1: true,
+    push7: false,
+    push3: true,
+    push1: true,
+  });
+
+  {/* Notifications Tab */}
+        <TabsContent value="notifications" className="space-y-4">
+          <Card className="glass-card animate-fade-in">
+            <CardHeader>
+              <CardTitle className="text-base">Renewal Notifications</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {[
+                { label: "7 days before renewal", emailKey: "email7" as const, pushKey: "push7" as const },
+                { label: "3 days before renewal", emailKey: "email3" as const, pushKey: "push3" as const },
+                { label: "1 day before renewal", emailKey: "email1" as const, pushKey: "push1" as const },
+              ].map((item) => (
+                <div key={item.label} className="space-y-3">
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={notifications[item.emailKey]}
+                        onCheckedChange={(v) =>
+                          setNotifications((n) => ({ ...n, [item.emailKey]: v }))
+                        }
+                      />
+                      <Label className="text-sm text-muted-foreground">Email</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={notifications[item.pushKey]}
+                        onCheckedChange={(v) =>
+                          setNotifications((n) => ({ ...n, [item.pushKey]: v }))
+                        }
+                      />
+                      <Label className="text-sm text-muted-foreground">Push</Label>
+                    </div>
+                  </div>
+                  <Separator />
+                </div>
+              ))}
+              <Button>Save Preferences</Button>
