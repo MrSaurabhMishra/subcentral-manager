@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSubscriptions } from "@/contexts/SubscriptionContext";
+import { useTier } from "@/contexts/TierContext";
 import { useLocale } from "@/contexts/LocaleContext";
+import { toast } from "sonner";
 
 const categories = ["Entertainment", "Music", "Design", "AI", "Dev Tools", "Productivity", "Storage", "Career", "Writing", "Finance", "Health", "Education", "Other"];
 
@@ -32,6 +34,7 @@ interface Props {
 
 export function AddSubscriptionModal({ open, onOpenChange, editId }: Props) {
   const { subscriptions, addSubscription, updateSubscription, deleteSubscription } = useSubscriptions();
+  const { canAddSubscription } = useTier();
   const { t } = useLocale();
 
   const existing = editId ? subscriptions.find(s => s.id === editId) : null;
@@ -45,6 +48,13 @@ export function AddSubscriptionModal({ open, onOpenChange, editId }: Props) {
 
   const handleSave = () => {
     if (!name.trim() || !cost) return;
+
+    // Check tier limit for new subs
+    if (!editId && !canAddSubscription(subscriptions.length)) {
+      toast.error("Subscription limit reached! Upgrade your plan to add more.");
+      return;
+    }
+
     const icon = getIcon(name);
     const sharedArr = shared.split(",").map(s => s.trim()).filter(Boolean);
     const data = {
@@ -54,7 +64,7 @@ export function AddSubscriptionModal({ open, onOpenChange, editId }: Props) {
       nextBilling: status === "paused" ? "—" : renewal,
       monthlyCost: parseFloat(cost),
       lastUsed: existing?.lastUsed || "Never",
-      currentMonthUsage: existing?.currentMonthUsage || "0 hrs",
+      currentMonthUsage: existing?.currentMonthUsage || "0 days",
       shared: sharedArr.length > 0,
       sharedWith: sharedArr.length > 0 ? sharedArr : undefined,
       category,
@@ -85,7 +95,7 @@ export function AddSubscriptionModal({ open, onOpenChange, editId }: Props) {
           <div className="space-y-1.5">
             <Label>Service Name</Label>
             <div className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-xl shrink-0">
+              <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-xl shrink-0">
                 {getIcon(name) || (name ? <span className="text-sm font-bold text-muted-foreground">{name[0]?.toUpperCase()}</span> : "?")}
               </div>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="Netflix, Spotify..." />

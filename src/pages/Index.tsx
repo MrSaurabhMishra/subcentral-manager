@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { SubscriptionDeepDive } from "@/components/dashboard/SubscriptionDeepDive";
 import { AddSubscriptionModal } from "@/components/dashboard/AddSubscriptionModal";
 import { VibeCheckOverlay } from "@/components/dashboard/VibeCheckOverlay";
+import { AhaMomentLoader, useAhaMoment } from "@/components/dashboard/AhaMomentLoader";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useSubscriptions } from "@/contexts/SubscriptionContext";
 
@@ -15,8 +16,13 @@ const Dashboard = () => {
   const { subscriptions, selectedSubId } = useSubscriptions();
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const { shouldShow: showAha, markShown: dismissAha } = useAhaMoment();
 
   const selectedSub = selectedSubId ? subscriptions.find(s => s.id === selectedSubId) : null;
+
+  if (showAha && subscriptions.length === 0) {
+    return <AhaMomentLoader onComplete={dismissAha} />;
+  }
 
   return (
     <>
@@ -37,11 +43,9 @@ const Dashboard = () => {
               <SubscriptionDeepDive sub={selectedSub} />
             ) : (
               <>
+                <UsageAlerts />
                 <UpcomingRenewals />
-                <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
-                  <SubscriptionTable />
-                  <UsageAlerts />
-                </div>
+                <SubscriptionTable />
               </>
             )}
           </>
