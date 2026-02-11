@@ -18,22 +18,20 @@ function getDaysInactive(lastUsed: string): number {
 
 export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
   const { setSelectedSubId } = useSubscriptions();
-  const { formatCurrency, locale } = useLocale();
+  const { formatCurrency } = useLocale();
 
-  const totalHours = sub.dailyHours.reduce((a, b) => a + b, 0);
-  const totalDays = totalHours / 24;
-  const totalMonths = totalDays / 30;
-  const costPerDay = totalDays > 0 ? sub.monthlyCost / totalDays : 0;
+  const totalUsedDays = sub.usageDays.filter(d => d > 0).length;
+  const totalMonths = totalUsedDays / 30;
+  const costPerDay = totalUsedDays > 0 ? sub.monthlyCost / totalUsedDays : 0;
   const daysInactive = getDaysInactive(sub.lastUsed);
   const isWasting = daysInactive >= 7;
 
-  // Build usage chart — show in days
-  const chartData = sub.dailyHours.slice(-7).map((h, i) => ({
+  // Build usage chart — show in days (1 = used, 0 = not)
+  const chartData = sub.usageDays.slice(-14).map((d, i) => ({
     label: `Day ${i + 1}`,
-    days: +(h / 24).toFixed(3),
+    used: d > 0 ? 1 : 0,
   }));
 
-  // Renewal progress
   const renewalDays = (() => {
     if (sub.nextBilling === "—") return null;
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -48,7 +46,7 @@ export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => setSelectedSubId(null)} className="gap-1.5">
           <ArrowLeft className="h-4 w-4" />
-          {locale === "hi" ? "वापस जाएं" : "Back to Global View"}
+          Back to Global View
         </Button>
       </div>
 
@@ -75,15 +73,15 @@ export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Cost/Day</p>
-              <p className="text-lg font-bold">{totalDays > 0 ? formatCurrency(costPerDay) : "—"}</p>
+              <p className="text-lg font-bold">{totalUsedDays > 0 ? formatCurrency(costPerDay) : "—"}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Total Days</p>
-              <p className="text-lg font-bold">{totalDays.toFixed(2)}d</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Days Used</p>
+              <p className="text-lg font-bold">{totalUsedDays}d</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Total Months</p>
-              <p className="text-lg font-bold">{totalMonths.toFixed(2)}mo</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Months Active</p>
+              <p className="text-lg font-bold">{totalMonths.toFixed(1)}mo</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Monthly Cost</p>
@@ -94,8 +92,8 @@ export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
           {renewalDays !== null && (
             <div className="mb-5 space-y-1.5">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">{locale === "hi" ? "नवीनीकरण काउंटडाउन" : "Renewal Countdown"}</span>
-                <span className="font-medium">{renewalDays} {locale === "hi" ? "दिन बाकी" : "days left"}</span>
+                <span className="text-muted-foreground">Renewal Countdown</span>
+                <span className="font-medium">{renewalDays} days left</span>
               </div>
               <Progress value={renewalProgress} className="h-2" />
             </div>
@@ -103,11 +101,11 @@ export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
 
           {chartData.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">{locale === "hi" ? "हाल का उपयोग (दिनों में)" : "Recent Usage (in days)"}</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Recent Usage (Days)</p>
               <ResponsiveContainer width="100%" height={140}>
                 <BarChart data={chartData}>
                   <XAxis dataKey="label" axisLine={false} tickLine={false} className="text-xs" />
-                  <YAxis axisLine={false} tickLine={false} className="text-xs" />
+                  <YAxis axisLine={false} tickLine={false} className="text-xs" domain={[0, 1]} ticks={[0, 1]} />
                   <Tooltip
                     contentStyle={{
                       background: "hsl(var(--card))",
@@ -115,9 +113,9 @@ export function SubscriptionDeepDive({ sub }: { sub: Subscription }) {
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(v: number) => [`${v} days`, ""]}
+                    formatter={(v: number) => [v > 0 ? "Used" : "Not used", ""]}
                   />
-                  <Bar dataKey="days" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="used" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

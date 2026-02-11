@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   User, BarChart3, CreditCard, Layers, Clock, KeyRound, HelpCircle, Bell, Users, Download, LogOut,
-  ArrowLeft, Eye, EyeOff, Mail, Phone, Lock, Printer, Crown,
+  ArrowLeft, Mail, Phone, Lock, Printer, Crown, Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useLocale } from "@/contexts/LocaleContext";
 import { useSubscriptions } from "@/contexts/SubscriptionContext";
 import { useTier } from "@/contexts/TierContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { paymentHistory } from "@/lib/mockData";
 import { toast } from "sonner";
 
@@ -33,23 +34,31 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
   const { t, formatCurrency } = useLocale();
   const { subscriptions } = useSubscriptions();
   const { tier, limits, tierName, setTier } = useTier();
-  const [cardRevealed, setCardRevealed] = useState(false);
+  const { user, updateProfile, updatePassword } = useAuth();
+
   const [notifSettings, setNotifSettings] = useState({
     renewal7Email: true, renewal7Push: false,
     renewal3Email: true, renewal3Push: true,
     renewal1Email: true, renewal1Push: true,
     paymentEmail: true, paymentPush: false,
     usageEmail: false, usagePush: false,
-    summaryEmail: true, summaryPush: false,
+    summaryEmail: true,
   });
 
+  // Profile edit state
+  const [profileName, setProfileName] = useState(user?.name || "");
+  const [profileEmail, setProfileEmail] = useState(user?.email || "");
+
+  // Password state
+  const [curPw, setCurPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmNewPw, setConfirmNewPw] = useState("");
+
   const sharedSubs = subscriptions.filter((s) => s.shared);
+  const initials = user?.name ? user.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) : "U";
 
   const handleExportCSV = () => {
-    if (!limits.dataExport) {
-      toast.error("Data Export is available on Premium+ only.");
-      return;
-    }
+    if (!limits.dataExport) { toast.error("Data Export is available on Premium+ only."); return; }
     const totalSpend = subscriptions.filter(s => s.status === "active").reduce((s, a) => s + a.monthlyCost, 0);
     const totalSave = subscriptions.filter(s => s.status === "paused").reduce((s, a) => s + a.monthlyCost, 0);
     const waste = subscriptions.filter(s => { const m = s.lastUsed.match(/(\d+)\s*days?\s*ago/); return m && parseInt(m[1]) >= 7; }).reduce((s, a) => s + a.monthlyCost, 0);
@@ -61,18 +70,41 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
     const blob = new Blob([rows.join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = "subcentral-export.csv";
-    a.click();
+    a.href = url; a.download = "subcentral-export.csv"; a.click();
     URL.revokeObjectURL(url);
   };
 
   const handleDownloadInvoice = (desc: string) => {
-    if (!limits.billingDownload) {
-      toast.error("Invoice download is available on Premium+ only.");
-      return;
-    }
+    if (!limits.billingDownload) { toast.error("Invoice download is available on Premium+ only."); return; }
     toast.success(`Downloading invoice for "${desc}"...`);
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("Image must be under 2MB."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateProfile({ photoBase64: reader.result as string });
+      toast.success("Profile photo updated!");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveProfile = () => {
+    updateProfile({ name: profileName, email: profileEmail });
+    toast.success("Profile saved!");
+  };
+
+  const handleUpdatePassword = () => {
+    if (!curPw || !newPw || !confirmNewPw) { toast.error("Fill all fields."); return; }
+    if (newPw !== confirmNewPw) { toast.error("Passwords don't match."); return; }
+    if (updatePassword(curPw, newPw)) {
+      toast.success("Password updated!");
+      setCurPw(""); setNewPw(""); setConfirmNewPw("");
+    } else {
+      toast.error("Current password is incorrect.");
+    }
   };
 
   const NotifRow = ({ label, emailKey, pushKey, emailOnly }: { label: string; emailKey: keyof typeof notifSettings; pushKey?: keyof typeof notifSettings; emailOnly?: boolean }) => (
@@ -111,11 +143,15 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
       {view === "main" && (
         <>
           <div className="p-4 border-b border-border flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">JD</div>
+            {user?.photoBase64 ? (
+              <img src={user.photoBase64} alt="Profile" className="h-10 w-10 rounded-full object-cover" />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{initials}</div>
+            )}
             <div>
-              <p className="font-semibold text-sm">John Doe</p>
+              <p className="font-semibold text-sm">{user?.name || "User"}</p>
               <div className="flex items-center gap-1.5">
-                <p className="text-xs text-muted-foreground">john.doe@email.com</p>
+                <p className="text-xs text-muted-foreground">{user?.email || ""}</p>
                 {tier !== "basic" && <Badge className="text-[8px] h-4 bg-primary/10 text-primary border-0 gap-0.5"><Crown className="h-2.5 w-2.5" />{tierName}</Badge>}
               </div>
             </div>
@@ -126,10 +162,7 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
                 key={item.label}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-50"
                 onClick={() => {
-                  if (item.view === "virtualCard") {
-                    toast.info("Virtual Card is coming soon!");
-                    return;
-                  }
+                  if (item.view === "virtualCard") { toast.info("Virtual Card is coming soon!"); return; }
                   setView(item.view);
                 }}
                 disabled={item.locked}
@@ -154,15 +187,24 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
           <PanelHeader title={t("account.profile")} onBack={() => setView("main")} />
           <div className="p-4 space-y-4">
             <div className="flex justify-center">
-              <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl cursor-pointer hover:bg-primary/20 transition-colors">
-                JD
-              </div>
+              <label className="relative cursor-pointer group">
+                {user?.photoBase64 ? (
+                  <img src={user.photoBase64} alt="Profile" className="h-20 w-20 rounded-full object-cover" />
+                ) : (
+                  <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl">
+                    {initials}
+                  </div>
+                )}
+                <div className="absolute inset-0 rounded-full bg-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="h-5 w-5 text-white" />
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+              </label>
             </div>
             <div className="space-y-3">
-              <div><Label className="text-xs">Name</Label><Input defaultValue="John Doe" className="mt-1 h-9 text-sm" /></div>
-              <div><Label className="text-xs">Email</Label><Input defaultValue="john.doe@email.com" className="mt-1 h-9 text-sm" /></div>
-              <div><Label className="text-xs">Confirm Password (to change email)</Label><Input type="password" placeholder="••••••••" className="mt-1 h-9 text-sm" /></div>
-              <Button size="sm" className="w-full">Save Changes</Button>
+              <div><Label className="text-xs">Name</Label><Input value={profileName} onChange={e => setProfileName(e.target.value)} className="mt-1 h-9 text-sm" /></div>
+              <div><Label className="text-xs">Email</Label><Input value={profileEmail} onChange={e => setProfileEmail(e.target.value)} className="mt-1 h-9 text-sm" /></div>
+              <Button size="sm" className="w-full" onClick={handleSaveProfile}>Save Changes</Button>
             </div>
           </div>
         </>
@@ -173,7 +215,7 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
           <PanelHeader title={t("account.usageSummary")} onBack={() => setView("main")} />
           <div className="p-4 space-y-2">
             {subscriptions.filter(s => s.status === "active").map(s => (
-              <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-sm">
+              <div key={s.id} className="flex items-center justify-between p-2 rounded-xl bg-muted/50 text-sm">
                 <span className="flex items-center gap-2"><span>{s.icon}</span>{s.service}</span>
                 <span className="text-muted-foreground">{s.currentMonthUsage}</span>
               </div>
@@ -207,7 +249,7 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
         <>
           <PanelHeader title={t("account.yourPlan")} onBack={() => setView("main")} />
           <div className="p-4 space-y-3">
-            <div className="p-3 rounded-lg border border-primary/30 bg-primary/5">
+            <div className="p-3 rounded-xl border border-primary/30 bg-primary/5">
               <div className="flex items-center justify-between">
                 <p className="font-semibold text-sm">{tierName}</p>
                 <Badge className="bg-primary/10 text-primary border-0">Current</Badge>
@@ -217,7 +259,7 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
               </p>
             </div>
             {tier !== "premiumPlus" && (
-              <div className="p-3 rounded-lg border">
+              <div className="p-3 rounded-xl border">
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-sm">{tier === "basic" ? "Premium" : "Premium+"}</p>
                   <span className="text-sm font-bold">{tier === "basic" ? "$15/yr" : "$25/yr"}</span>
@@ -254,13 +296,7 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
                     <TableCell className="text-xs py-2">{p.description}</TableCell>
                     <TableCell className="text-xs py-2 text-right font-medium">{formatCurrency(p.amount)}</TableCell>
                     <TableCell className="py-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleDownloadInvoice(p.description)}
-                        title={limits.billingDownload ? "Download Invoice" : "Premium+ only"}
-                      >
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDownloadInvoice(p.description)} title={limits.billingDownload ? "Download Invoice" : "Premium+ only"}>
                         <Printer className={`h-3 w-3 ${limits.billingDownload ? "text-primary" : "text-muted-foreground/30"}`} />
                       </Button>
                     </TableCell>
@@ -279,10 +315,10 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
         <>
           <PanelHeader title={t("account.resetPassword")} onBack={() => setView("main")} />
           <div className="p-4 space-y-3">
-            <div><Label className="text-xs">Current Password</Label><Input type="password" className="mt-1 h-9 text-sm" /></div>
-            <div><Label className="text-xs">New Password</Label><Input type="password" className="mt-1 h-9 text-sm" /></div>
-            <div><Label className="text-xs">Confirm New Password</Label><Input type="password" className="mt-1 h-9 text-sm" /></div>
-            <Button size="sm" className="w-full">Update Password</Button>
+            <div><Label className="text-xs">Current Password</Label><Input type="password" value={curPw} onChange={e => setCurPw(e.target.value)} className="mt-1 h-9 text-sm" /></div>
+            <div><Label className="text-xs">New Password</Label><Input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} className="mt-1 h-9 text-sm" /></div>
+            <div><Label className="text-xs">Confirm New Password</Label><Input type="password" value={confirmNewPw} onChange={e => setConfirmNewPw(e.target.value)} className="mt-1 h-9 text-sm" /></div>
+            <Button size="sm" className="w-full" onClick={handleUpdatePassword}>Update Password</Button>
           </div>
         </>
       )}
@@ -308,7 +344,7 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
                 { q: "How do shared accounts work?", a: "You can invite family or team members to split costs on shared subscriptions." },
                 { q: "What are the subscription limits?", a: "Basic: 4 subs, Premium: 10 subs, Premium+: Unlimited." },
                 { q: "How do I upgrade my plan?", a: "Go to Plans in the sidebar or Your Plan in your account menu." },
-                { q: "What is the Daily Vibe Check?", a: "A fun daily overlay that asks about your usage for each subscription to track engagement." },
+                { q: "What is the Daily Vibe Check?", a: "A fun daily Yes/No poll that asks about your usage for each subscription to track engagement in days." },
                 { q: "How are savings calculated?", a: "Savings = cost of paused subscriptions. Potential savings = cost of subs unused for 7+ days." },
                 { q: "Can I export my data?", a: "Premium+ users can export data as CSV or PDF from the Data Export section." },
                 { q: "How does the virtual card work?", a: "Virtual Card is a planned feature that will provide a dedicated card for managing sub payments." },
@@ -356,7 +392,7 @@ export function AccountSidebar({ onClose }: { onClose: () => void }) {
               <p className="text-sm text-muted-foreground">No shared subscriptions yet.</p>
             ) : (
               sharedSubs.map(sub => (
-                <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                <div key={sub.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{sub.icon}</span>
                     <div>

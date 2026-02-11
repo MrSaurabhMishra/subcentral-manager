@@ -12,7 +12,7 @@ export interface Subscription {
   shared: boolean;
   sharedWith?: string[];
   category: string;
-  dailyHours: number[];
+  usageDays: number[];
 }
 
 const STORAGE_KEY = "subcentral-subscriptions";
@@ -22,10 +22,10 @@ const defaultSubscriptions: Subscription[] = [];
 
 interface SubscriptionContextType {
   subscriptions: Subscription[];
-  addSubscription: (sub: Omit<Subscription, "id" | "dailyHours">) => void;
+  addSubscription: (sub: Omit<Subscription, "id" | "usageDays">) => void;
   updateSubscription: (id: string, updates: Partial<Subscription>) => void;
   deleteSubscription: (id: string) => void;
-  logUsage: (id: string, hours: number) => void;
+  logUsage: (id: string, usedToday: number) => void;
   selectedSubId: string | null;
   setSelectedSubId: (id: string | null) => void;
   shouldShowVibeCheck: boolean;
@@ -38,7 +38,15 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : defaultSubscriptions;
+      if (saved) {
+        // Migrate old dailyHours to usageDays
+        const parsed = JSON.parse(saved);
+        return parsed.map((s: any) => ({
+          ...s,
+          usageDays: s.usageDays || s.dailyHours || [],
+        }));
+      }
+      return defaultSubscriptions;
     } catch {
       return defaultSubscriptions;
     }
@@ -56,7 +64,6 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(subscriptions));
   }, [subscriptions]);
 
-  // Re-check vibe when subscriptions change
   useEffect(() => {
     const today = new Date().toDateString();
     const lastDismissed = localStorage.getItem(VIBE_KEY);
@@ -65,8 +72,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     }
   }, [subscriptions.length]);
 
-  const addSubscription = useCallback((sub: Omit<Subscription, "id" | "dailyHours">) => {
-    const newSub: Subscription = { ...sub, id: crypto.randomUUID(), dailyHours: [] };
+  const addSubscription = useCallback((sub: Omit<Subscription, "id" | "usageDays">) => {
+    const newSub: Subscription = { ...sub, id: crypto.randomUUID(), usageDays: [] };
     setSubscriptions(prev => [...prev, newSub]);
   }, []);
 
@@ -79,14 +86,15 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     if (selectedSubId === id) setSelectedSubId(null);
   }, [selectedSubId]);
 
-  const logUsage = useCallback((id: string, hours: number) => {
+  const logUsage = useCallback((id: string, usedToday: number) => {
     setSubscriptions(prev => prev.map(s => {
       if (s.id !== id) return s;
-      const updated = { ...s, dailyHours: [...s.dailyHours, hours] };
-      if (hours > 0) {
+      const updated = { ...s, usageDays: [...s.usageDays, usedToday] };
+      const totalUsedDays = updated.usageDays.filter(d => d > 0).length;
+      if (usedToday > 0) {
         updated.lastUsed = "Today";
-        updated.currentMonthUsage = `${s.dailyHours.reduce((a, b) => a + b, 0) + hours} hrs`;
       }
+      updated.currentMonthUsage = `${totalUsedDays} days`;
       return updated;
     }));
   }, []);

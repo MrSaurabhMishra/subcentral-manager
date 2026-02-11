@@ -73,16 +73,16 @@ const Analytics = () => {
     name, value, color: categoryColors[i % categoryColors.length],
   }));
 
-  // Usage data in DAYS (not hours) — dailyHours / 24
-  const allHours = filtered.flatMap(s => s.dailyHours);
-  const dailyData = allHours.slice(-7).map((h, i) => ({
+  // Usage data in DAYS
+  const allDays = filtered.flatMap(s => s.usageDays);
+  const dailyData = allDays.slice(-7).map((d, i) => ({
     label: `Day ${i + 1}`,
-    spend: +(h / 24).toFixed(3),
+    spend: d > 0 ? 1 : 0,
   }));
   const weeklyData = [0, 1, 2, 3].map(w => {
-    const slice = allHours.slice(w * 7, (w + 1) * 7);
-    const totalH = slice.reduce((a, b) => a + b, 0);
-    return { label: `Week ${w + 1}`, spend: +(totalH / 24).toFixed(2) };
+    const slice = allDays.slice(w * 7, (w + 1) * 7);
+    const totalUsed = slice.filter(d => d > 0).length;
+    return { label: `Week ${w + 1}`, spend: totalUsed };
   });
   const totalMonthly = activeSubs.reduce((sum, s) => sum + s.monthlyCost, 0);
   const monthlyData = [{ label: "This Month", spend: totalMonthly }];

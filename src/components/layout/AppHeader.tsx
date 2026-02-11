@@ -7,9 +7,11 @@ import { LocaleSwitcher } from "@/components/header/LocaleSwitcher";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { AddSubscriptionModal } from "@/components/dashboard/AddSubscriptionModal";
 import { useLocale } from "@/contexts/LocaleContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function AppHeader() {
   const { t } = useLocale();
+  const { user, signOut } = useAuth();
   const [dark, setDark] = useState(() => {
     if (typeof window !== "undefined") {
       return document.documentElement.classList.contains("dark");
@@ -20,12 +22,13 @@ export function AppHeader() {
   const [addOpen, setAddOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const initials = user?.name
+    ? user.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)
+    : "U";
+
   useEffect(() => {
-    if (dark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    if (dark) document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
   }, [dark]);
 
   useEffect(() => {
@@ -63,12 +66,16 @@ export function AppHeader() {
           </Button>
           <div className="relative" ref={dropdownRef}>
             <Button variant="ghost" className="flex items-center gap-2 px-2" onClick={() => setProfileOpen(!profileOpen)}>
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">JD</div>
+              {user?.photoBase64 ? (
+                <img src={user.photoBase64} alt="Profile" className="h-8 w-8 rounded-full object-cover" />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">{initials}</div>
+              )}
               <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", profileOpen && "rotate-180")} />
             </Button>
             {profileOpen && (
               <div className="absolute right-0 top-full mt-2 z-50">
-                <AccountSidebar onClose={() => setProfileOpen(false)} />
+                <AccountSidebar onClose={() => { signOut(); setProfileOpen(false); }} />
               </div>
             )}
           </div>
