@@ -7,12 +7,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { LocaleProvider } from "@/contexts/LocaleContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { TierProvider } from "@/contexts/TierContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import Analytics from "./pages/Analytics";
 import Subscriptions from "./pages/Subscriptions";
 import Plans from "./pages/Plans";
 import SharedAccounts from "./pages/SharedAccounts";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,19 +43,37 @@ function AnimatedRoutes() {
   );
 }
 
+function AuthGate() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return (
+      <BrowserRouter>
+        <Auth />
+      </BrowserRouter>
+    );
+  }
+
+  return (
+    <BrowserRouter>
+      <AppLayout>
+        <AnimatedRoutes />
+      </AppLayout>
+    </BrowserRouter>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <LocaleProvider>
         <TierProvider>
           <SubscriptionProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppLayout>
-                <AnimatedRoutes />
-              </AppLayout>
-            </BrowserRouter>
+            <AuthProvider>
+              <Toaster />
+              <Sonner />
+              <AuthGate />
+            </AuthProvider>
           </SubscriptionProvider>
         </TierProvider>
       </LocaleProvider>

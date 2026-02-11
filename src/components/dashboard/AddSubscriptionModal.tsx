@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,10 @@ function getIcon(name: string): string {
   return "";
 }
 
+function getTodayString() {
+  return new Date().toISOString().split("T")[0];
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,21 +39,39 @@ interface Props {
 export function AddSubscriptionModal({ open, onOpenChange, editId }: Props) {
   const { subscriptions, addSubscription, updateSubscription, deleteSubscription } = useSubscriptions();
   const { canAddSubscription } = useTier();
-  const { t } = useLocale();
+  const { formatCurrency } = useLocale();
 
   const existing = editId ? subscriptions.find(s => s.id === editId) : null;
 
-  const [name, setName] = useState(existing?.service || "");
-  const [category, setCategory] = useState(existing?.category || "Entertainment");
-  const [cost, setCost] = useState(existing?.monthlyCost?.toString() || "");
-  const [renewal, setRenewal] = useState(existing?.nextBilling || "");
-  const [shared, setShared] = useState(existing?.sharedWith?.join(", ") || "");
-  const [status, setStatus] = useState<"active" | "paused">(existing?.status || "active");
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("Entertainment");
+  const [cost, setCost] = useState("");
+  const [renewal, setRenewal] = useState("");
+  const [shared, setShared] = useState("");
+  const [status, setStatus] = useState<"active" | "paused">("active");
+
+  // Reset form when modal opens/editId changes
+  useEffect(() => {
+    if (open) {
+      const e = editId ? subscriptions.find(s => s.id === editId) : null;
+      setName(e?.service || "");
+      setCategory(e?.category || "Entertainment");
+      setCost(e?.monthlyCost?.toString() || "");
+      setRenewal(e?.nextBilling || "");
+      setShared(e?.sharedWith?.join(", ") || "");
+      setStatus(e?.status || "active");
+    }
+  }, [open, editId, subscriptions]);
 
   const handleSave = () => {
     if (!name.trim() || !cost) return;
 
-    // Check tier limit for new subs
+    // Date validation: no past dates
+    if (renewal && renewal < getTodayString()) {
+      toast.error("Renewal date cannot be in the past.");
+      return;
+    }
+
     if (!editId && !canAddSubscription(subscriptions.length)) {
       toast.error("Subscription limit reached! Upgrade your plan to add more.");
       return;
@@ -72,8 +94,10 @@ export function AddSubscriptionModal({ open, onOpenChange, editId }: Props) {
 
     if (editId && existing) {
       updateSubscription(editId, data);
+      toast.success("Subscription updated!");
     } else {
       addSubscription(data);
+      toast.success("Subscription added!");
     }
     onOpenChange(false);
   };
@@ -81,6 +105,7 @@ export function AddSubscriptionModal({ open, onOpenChange, editId }: Props) {
   const handleDelete = () => {
     if (editId) {
       deleteSubscription(editId);
+      toast.success("Subscription deleted.");
       onOpenChange(false);
     }
   };
@@ -112,14 +137,14 @@ export function AddSubscriptionModal({ open, onOpenChange, editId }: Props) {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Monthly Cost ($)</Label>
+              <Label>Monthly Cost</Label>
               <Input type="number" step="0.01" value={cost} onChange={e => setCost(e.target.value)} placeholder="9.99" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Renewal Date</Label>
-              <Input type="date" value={renewal} onChange={e => setRenewal(e.target.value)} />
+              <Input type="date" value={renewal} onChange={e => setRenewal(e.target.value)} min={getTodayString()} />
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
